@@ -1,0 +1,6 @@
+File	Label	Reads	Mapped	Percentage	TotalsgRNAs	Zerocounts	GiniIndex	NegSelQC	NegSelQCPval	NegSelQCPvalPermutation	NegSelQCPvalPermutationFDR	NegSelQCGene
+raw_data/library_sequencing/chrom_modulators/5.0.1.20.604/fastq_raw/2171_CRISPR_CM5_Plasmid.fastq	LIB	4171178	3384542	0.8114	12434	20	0.06033	0	1	1	1	0.0
+raw_data/reads_vorinostat_screen/2546_CRISPR_CM_DMSO1.fastq	DMSO1	1100545	818164	0.7434	12434	195	0.1668	0	1	1	1	0.0
+raw_data/reads_vorinostat_screen/2547_CRISPR_CM_DMSO2.fastq	DMSO2	1988853	1540808	0.7747	12434	71	0.1072	0	1	1	1	0.0
+raw_data/reads_vorinostat_screen/2548_CRISPR_CM_Vorinostat1.fastq	V1	2868072	2203415	0.7683	12434	97	0.1093	0	1	1	1	0.0
+raw_data/reads_vorinostat_screen/2549_CRISPR_CM_Vorinostat2.fastq	V2	3039906	2368991	0.7793	12434	76	0.1107	0	1	1	1	0.0

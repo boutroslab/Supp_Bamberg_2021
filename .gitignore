@@ -37,3 +37,7 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+archive_non_commited/*
+crispr_screen_analysis/library_design/5.0.1.20.604/chrom_mod.5.0.1.20.604.large.gff
+crispr_screen_analysis/library_design/5.0.1.20.604/chrom_mod.5.0.1.20.604.large.tab
+EHMT_expression_analysis/source_data/Cell_line_RMA_proc_basalExp.txt

@@ -1,0 +1,5 @@
+drug_id	drug_name	synonyms	pathway_name	targets	pubchem
+1621	PCI-34051	AK298746	Chromatin histone acetylation	HDAC8, HDAC6, HDAC1	24753719
+1593	Entinostat	MS-275	Chromatin histone acetylation	HDAC1, HDAC3	4261
+1853	OF-1	-	Chromatin histone acetylation	BRPF1B, BRPF2	35397514
+1012	Vorinostat	Zolinza, SAHA, suberanilohydroxamic acid, suberoylanilide hydroxamic acid, MK-0683	Chromatin histone acetylation	HDAC inhibitor Class I, IIa, IIb, IV	5311

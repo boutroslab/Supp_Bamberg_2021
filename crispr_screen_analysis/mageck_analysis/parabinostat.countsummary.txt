@@ -1,0 +1,5 @@
+File	Label	Reads	Mapped	Percentage	TotalsgRNAs	Zerocounts	GiniIndex	NegSelQC	NegSelQCPval	NegSelQCPvalPermutation	NegSelQCPvalPermutationFDR	NegSelQCGene
+/Volumes/EXTHD0214/DATA/CRISPR_Cas/Tianzuo_EHMT1_CRISPRscreens/raw_data/reads_B_P_U_screen/DMSO1_S1_L001_R1_001.fastq.gz	DMSO1	3363787	2473539	0.7353	12434	76	0.1023	0	1	1	1	0.0
+/Volumes/EXTHD0214/DATA/CRISPR_Cas/Tianzuo_EHMT1_CRISPRscreens/raw_data/reads_B_P_U_screen/DMSO2_S2_L001_R1_001.fastq.gz	DMSO2	2826338	2103632	0.7443	12434	82	0.1175	0	1	1	1	0.0
+/Volumes/EXTHD0214/DATA/CRISPR_Cas/Tianzuo_EHMT1_CRISPRscreens/raw_data/reads_B_P_U_screen/P1_S7_L001_R1_001.fastq.gz	P1	3357430	2517407	0.7498	12434	63	0.09701	0	1	1	1	0.0
+/Volumes/EXTHD0214/DATA/CRISPR_Cas/Tianzuo_EHMT1_CRISPRscreens/raw_data/reads_B_P_U_screen/P2_S8_L001_R1_001.fastq.gz	P2	4117123	3011555	0.7315	12434	61	0.09382	0	1	1	1	0.0

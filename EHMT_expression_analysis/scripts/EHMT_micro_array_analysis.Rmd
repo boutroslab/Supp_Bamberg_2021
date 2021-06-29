@@ -1,0 +1,436 @@
+---
+title: "Analysis of a correlation between EHMT expression and drug sensitivity in human PDO lines"
+author: "Florian Heigwer"
+date: "`r Sys.Date()`"
+abstract: >
+ This document contains code to analyze a micro-array experiment performed by Johannes Bedge and colleagues at the University Clinic Mannheim Bedge Group. The data comprises multiple Affymetrix chips performed by the DKFZ? core facility. Purpose is to find if EHMT1/2 expression correlates with the PDO's sensitivity to HDAC inhibitor treatments. Data was produced in replicates sampling each donor derived PDO line in 2 different passages.
+bibliography: references.bib
+output: BiocStyle::pdf_document
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  chunk_output_type: console
+---
+
+# Dependencies
+
+We load a number of packages whose functions are needed throughout the analysis
+
+
+```{r message=F, warning=F, results='hide'}
+library(limma)
+library(ggrepel)
+library(patchwork)
+library(fgsea)
+library("hgu133plus2.db")
+library(tidyverse)
+library(gplots)
+library(RColorBrewer)
+library(eulerr)
+library(oligo)
+library(arrayQualityMetrics)
+library(ggsignif)
+library(ggpubr)
+
+```
+
+#Lets define some themes
+
+This we do as a quality of life step to give all figures that we produce a common look and feel.
+
+## B110 Theme
+
+```{r theme, include=FALSE}
+
+theme_b110 <- function(){
+  theme_classic() +
+  theme(
+    axis.text = element_text(size = 10), 
+    axis.title = element_text(size = 10),
+    plot.title = element_text(size = 12,hjust = 0.5,face = "bold"),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    legend.position = "bottom"
+    )
+}
+
+## B110 Colors
+
+sgi_blue    = '#5087C8'
+sgi_yellow1 = '#F2EE35'
+sgi_yellow2 = '#FED98E'
+b110_grey   = '#808080'
+b110_grey_light   = '#909090'
+b110_transparent_black = alpha('#000000',0.5)
+google_red = '#dd4b39'
+google_green = '#0F9D58'
+google_yellow = '#F4B400'
+google_blue = '#4285F4'
+
+```
+
+#Read in data
+
+Data is used as provided by the DKFZ core-facility. Data is given as CEL raw data files, next to be quanitle normalized per experiment already log-transformed and summarized by averaging on gene level. Gene - Level View is presented.
+
+Cel files were collected and meta-data derived from files names.
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+raw_files <- list.files("./raw_data/",pattern = "*.CEL",full.names = T)
+
+samples<- tibble("donor"=c("D013", "D019", "D013", "D019", "D080", "D080", 
+                           "D090", "D090", "D092", "D092", "D104", "D104", 
+                           "D105", "D105", "D114", "D114","D115", "D115", 
+                           "D131", "D131", "D134", "D134", "D135", "D135"),
+                 "replicate"=c(1,1,2,2,1,2,1,2,1,2,1,2,1,2,1,2,1,2,1,2,1,2,
+                               1,2)) %>% unite(id,donor,replicate,remove = F)
+  
+raw_data <-  oligo::read.celfiles(filenames = raw_files,verbose = T,
+                                  sampleNames = samples$id)
+
+```
+
+#QC
+
+```{r eval=FALSE, include=FALSE}
+arrayQualityMetrics(expressionset = raw_data,
+    outdir = "./qc",
+    force = TRUE, do.logtransform = TRUE)
+```
+
+#inspect the data
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+Biobase::exprs(raw_data)[1:5, 1:5]
+
+exp_raw <- log2(Biobase::exprs(raw_data))
+PCA_raw <- prcomp(t(exp_raw), scale. = FALSE)
+
+percentVar <- round(100*PCA_raw$sdev^2/sum(PCA_raw$sdev^2),1)
+sd_ratio <- sqrt(percentVar[2] / percentVar[1])
+
+dataGG <- data.frame(PC1 = PCA_raw$x[,1], PC2 = PCA_raw$x[,2],
+                    donor = samples$donor ,
+                    replicate = samples$replicate)
+
+ggplot(dataGG, aes(PC1, PC2)) +
+      geom_point(aes(shape = factor(replicate), colour = donor)) +
+  ggtitle("PCA plot of the log-transformed raw expression data") +
+  xlab(paste0("PC1, VarExp: ", percentVar[1], "%")) +
+  ylab(paste0("PC2, VarExp: ", percentVar[2], "%")) +
+  theme(plot.title = element_text(hjust = 0.5))+
+  coord_fixed(ratio = sd_ratio) +
+  theme_b110()
+
+oligo::boxplot(raw_data, target = "core", 
+               main = "Boxplot of log2-intensitites for the raw data")
+
+
+```
+
+#Normalization
+
+```{r echo=TRUE}
+norm_data <- oligo::rma(raw_data)
+```
+
+
+#inspect the normed data
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+Biobase::exprs(norm_data)[1:5, 1:5]
+
+exp_raw <- log2(Biobase::exprs(norm_data))
+PCA_raw <- prcomp(t(exp_raw), scale. = FALSE)
+
+percentVar <- round(100*PCA_raw$sdev^2/sum(PCA_raw$sdev^2),1)
+sd_ratio <- sqrt(percentVar[2] / percentVar[1])
+
+dataGG <- data.frame(PC1 = PCA_raw$x[,1], PC2 = PCA_raw$x[,2],
+                    donor = samples$donor ,
+                    replicate = samples$replicate)
+
+ggplot(dataGG, aes(PC1, PC2)) +
+      geom_point(aes(shape = factor(replicate), colour = donor)) +
+  ggtitle("PCA plot of the log-transformed raw expression data") +
+  xlab(paste0("PC1, VarExp: ", percentVar[1], "%")) +
+  ylab(paste0("PC2, VarExp: ", percentVar[2], "%")) +
+  theme(plot.title = element_text(hjust = 0.5))+
+  coord_fixed(ratio = sd_ratio) +
+  theme_b110()
+
+oligo::boxplot(norm_data, target = "core", 
+               main = "Boxplot of log2-intensitites for the raw data")
+
+
+```
+
+## annotation and data
+
+We assume the data is indeed already normalized and non-log transformed. So we do the log-transform of the expression data here.
+
+```{r include=FALSE}
+annotations <- AnnotationDbi::select(hgu133plus2.db,
+                                  keys = (featureNames(norm_data)),
+                                  columns = c("SYMBOL", "GENENAME"),
+                                  keytype = "PROBEID")
+
+annotations <- subset(annotations, !is.na(SYMBOL)) %>%
+  group_by(PROBEID) %>%
+  filter(n_distinct(SYMBOL)==1) %>%
+  ungroup()
+
+
+expression_data <- Biobase::exprs(norm_data) %>% as.data.frame() %>% 
+  rownames_to_column("PROBEID") %>% as_tibble() 
+
+joined_data <- expression_data %>% 
+                  left_join(annotations) %>% 
+                  drop_na() %>% 
+                  group_by(SYMBOL) %>% 
+                  summarise_if(is.numeric,mean) %>%
+                  gather(id,value,-SYMBOL) %>%
+                  ungroup() %>%
+                  separate(id,c("donor","replicate"))
+
+```
+
+##Overview density plots
+
+So we vizualize a common density plot.
+
+```{r echo=FALSE}
+
+full <- joined_data %>%
+  ggplot(aes(value,fill=donor,col=donor)) +
+    geom_density(alpha=0.2) +
+    theme_b110() +
+    facet_wrap(~replicate)
+
+print(full)
+
+ggsave(plot = full,filename = "results/PDO_all_distributions.pdf",width = 5,height = 4)
+
+
+```
+
+#EHMT2 expression variance in human colorectal cancer oganoids
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+vars<- 
+  joined_data %>% group_by(SYMBOL) %>% summarise(v=var(value,na.rm = T)) %>% 
+  ungroup() %>% arrange(desc(v)) %>% mutate(idx=1:n()) 
+
+vars %>%
+  mutate(geneofinterest=SYMBOL%in%c("EHMT2")) %>%
+  group_by(geneofinterest) %>%
+  summarise(m=mean(v)) %>%
+  spread(geneofinterest,m) %>%
+  mutate(percentVar=`TRUE`*100/`FALSE`)
+
+
+p1 <- vars %>%
+  mutate(geneofinterest=SYMBOL%in%c("EHMT2"))  %>% 
+  ggplot(aes(x=idx,y=v)) +
+    geom_point(data = vars %>% filter(SYMBOL!="EHMT2"),col="grey") +
+    geom_point(data = vars %>% filter(SYMBOL=="EHMT2"),col="orange") +
+    geom_label_repel(data = vars %>% filter(SYMBOL=="EHMT2"),
+                     aes(label=paste0(SYMBOL," rank: ",idx))) +
+    theme_b110() +
+    xlab("variability rank") +
+    ylab("log10 expression variance") +
+    scale_y_log10()
+
+p2 <- joined_data %>% 
+    mutate(geneofinterest=if_else(SYMBOL %in% c("EHMT2"),
+                                  "EHMT2",
+                                  "ALL")) %>%
+      ggplot(aes(x=geneofinterest,y = value,fill=geneofinterest)) +
+        geom_violin() +
+        theme_b110() +
+        xlab("gene of interest") +
+        ylab("norm. expression") +
+        scale_fill_manual(values = c("grey","orange"))
+
+p3 <- p2 + p1
+
+print(p3)
+
+ggsave(filename = "results/PDO_EHMT_expression_variance.pdf",p3,height = 6,width=12)
+```
+
+#EHMT2 expression variance compared to all genes
+
+```{r echo=FALSE}
+joined_data %>% 
+  mutate(geneofinterest=SYMBOL%in%c("EHMT2")) %>%
+  group_by(geneofinterest) %>%
+  summarise(r=var(value)) %>% 
+  spread(geneofinterest,r) %>%
+  mutate(perc_range=`TRUE`*100/`FALSE`)
+```
+
+#EHMT2 expression range compared to all genes
+
+```{r echo=FALSE}
+joined_data %>% 
+  mutate(geneofinterest=SYMBOL%in%c("EHMT2")) %>%
+  group_by(geneofinterest) %>%
+  summarise(r=abs(range(value)[1]-range(value)[2])) %>%
+  spread(geneofinterest,r) %>%
+  mutate(perc_range=`TRUE`*100/`FALSE`)
+```
+
+Indeed the data seems sufficiently normalized as all distributions looks very similar and overlap to the extend expected from normalized data.
+
+Next we check for EHMT expression of the different donors and get the drug treatment result data.
+
+```{r echo=FALSE}
+
+EHMT2_range <- joined_data %>%
+  ggplot(aes(value,fill=donor,col=donor)) +
+    geom_density(alpha=0.2) +
+    theme_b110() +
+    geom_vline(xintercept = joined_data %>% 
+                 filter(SYMBOL=="EHMT2") %>% 
+                 pull(value) %>% range())+
+    ggtitle("EHMT2 dynamic range")
+
+print(EHMT2_range)
+
+ggsave(plot = EHMT2_range,
+       filename = "results/EHMT_ranges.pdf",width = 5,height = 4)
+
+EHMT2_PDO <- joined_data %>%
+  filter(SYMBOL %in% c("EHMT2")) %>%
+  group_by(SYMBOL) %>%
+  #mutate(donor=reorder(donor,value,mean)) %>%
+    ggplot(aes(x=donor,y=value)) +
+      geom_point() +
+      theme_b110() +
+      ggtitle("EHMT2 distribution")+ 
+      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+print(EHMT2_PDO)
+ggsave(plot = EHMT2_PDO,
+       filename = "results/PDO_EHMT_distributions.pdf",width = 5,height = 4)
+
+```
+
+#get treatment data 
+
+I extracted this data from Source Data main FiguresV2.xlsx (Fig7) and reformatted it to be amchine readable.
+
+```{r echo=FALSE}
+
+drug_data <- read_delim("raw_data/PDO_vorinostat_treatment_data.csv",delim = ";")
+
+
+simple_auc <- function(TPR, FPR){
+  # inputs already sorted, best scores first 
+  dFPR <- c(diff(FPR), 0)
+  dTPR <- c(diff(TPR), 0)
+  sum(TPR * dFPR) + sum(dTPR * dFPR)/2
+}
+
+aucs<-drug_data %>%
+  group_by(donor,vorinostat_uM) %>%
+  summarise(response=mean(response)) %>%
+  summarise(auc=simple_auc(response,vorinostat_uM))
+  
+
+```
+
+# Analyze correlations
+
+```{r echo=FALSE}
+
+expression_and_response <- aucs  %>%
+  left_join(joined_data %>%
+  filter(SYMBOL %in% c("EHMT2"))) %>% group_by(donor,SYMBOL,auc) %>%
+  summarise_if(is.numeric,mean,na.rm=T) %>%
+  drop_na()
+
+
+data_to_plot <- expression_and_response %>% ungroup() %>%
+    mutate(EHMT2q = if_else(value>quantile(value,probs = 0.75,na.rm = T),"high", 
+    if_else(value<quantile(value,probs = 0.25,na.rm = T),"low","medium"))) %>%
+    mutate(EHMT2q=factor(EHMT2q,levels = c("low","medium","high"))) 
+
+EHMT2_stats <- expression_and_response %>%
+  spread(SYMBOL,value) %>% ungroup() %>%
+  lm(auc~EHMT2,data = .) %>% 
+  summary()
+
+p1 <- data_to_plot %>%
+  ggplot(aes(x=value,y=auc)) +
+    geom_point(aes(col=EHMT2q)) +
+    geom_smooth(method = "lm") +
+          theme_b110()+
+          stat_cor(method = "pearson", label.x = 5.5, label.y = 1) + 
+          scale_color_manual(values = c(google_blue,b110_grey_light,google_red))
+
+give.n <- function(x){
+  #return(c(y = max(abs(x))*1.5, label =length(x)))
+  return(c(y = 1.1, label =length(x)))
+  # experiment with the multiplier to find the perfect position
+}
+
+p2 <- data_to_plot %>%
+  filter(EHMT2q!="medium") %>%
+  ggplot(aes(x=EHMT2q,y=auc)) +
+    geom_boxplot(aes(fill=EHMT2q)) + 
+    theme_b110() +
+    scale_fill_manual(values = c(google_blue,google_red)) +
+    stat_summary( fun.data = give.n, 
+                  geom = "text", 
+                 # fun.y = median,
+                  position = position_dodge(width = 0.75),fun.ymin = max)+
+    geom_signif(na.rm=T,
+                comparisons = list(c("low","high")),
+                test = "t.test",
+                test.args = list("alternative"="two.sided"),
+                step_increase = 0.2,
+                vjust = 0.2)
+
+p<- p1 + p2 + plot_layout(ncol = 2) 
+
+ggsave("results/PDO_EHMTvsHDAC.pdf",p,height = 6,width=12)
+
+print(p)
+
+```
+
+# EHMT2 expression drug sensitivity linear dependence test
+
+```{r echo=FALSE}
+
+print(EHMT2_stats)
+
+```
+
+# EHMT2 expression drug sensitivity linear dependence test
+
+```{r echo=FALSE}
+
+data_to_plot %>% 
+  filter(EHMT2q!="medium")  %>%
+  t.test(formula = auc~EHMT2q,data = .) %>%
+  print()
+
+```
+
+
+# Session info
+
+```{r}
+writeLines(capture.output(sessionInfo()), "results/SessionInfo.txt")
+sessionInfo()
+```
+
+# Bibliography
