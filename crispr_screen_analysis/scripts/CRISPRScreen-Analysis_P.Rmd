@@ -3,14 +3,17 @@ title: "Ambika HDAC inhibitor screen analysis"
 author: "F. Heigwer"
 date: "8/17/2018"
 output:
-  html_document: default
   pdf_document: 
     keep_tex: yes
+  html_document: default
 editor_options:
   chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
+#Lets define some themes
+#This we do as a quality of life step to give all figures that we produce a common look and feel.
+
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(readxl)
@@ -19,14 +22,7 @@ library(corrr)
 library(ggrastr)
 library(ggrepel)
 library(broom)
-```
-#Lets define some themes
-
-This we do as a quality of life step to give all figures that we produce a common look and feel.
-
-## B110 Theme
-
-```{r theme, include=FALSE}
+library(patchwork)
 
 theme_b110 <- function(){
   theme_classic() +
@@ -39,12 +35,6 @@ theme_b110 <- function(){
     legend.position = "bottom"
     )
 }
-
-```
-
-## B110 Colors
-
-```{r colors}
 
 sgi_blue    = '#5087C8'
 sgi_yellow1 = '#F2EE35'
@@ -59,23 +49,25 @@ google_blue = '#4285F4'
 
 ```
 
+## Overview
+
+This vignette is used to analyze a CRISPR screen performed by treating SW480 cells using 8 nM panobinostat in 0.1 % DMSO and 0.1 % DMSO as a control sample. It was screened in duplicates per treatment. Raw counts per sgRNA are the basis of the analysis.
+
+All plots were used as given for the main figure panels. The compiled vignette pdf serves as an overview.
+
 ## Data input
 
-Lets check how the data looks like and what the objectives of the analyses are.
+```{r data_input, echo=TRUE, message=FALSE, warning=FALSE, paged.print=TRUE}
 
-We conclude that we have data for two cell lines, in two different passages each. Each was measured for the abundance of 146 different analytes between two treatments. These are however always a little bit different.
-
-```{r data_input}
-
-treat1<-read_delim(file = "../raw_data_counts/counts_B_P_U_screen/P1_S7_L001_R1_001.txt",delim = "\t")
-treat2<-read_delim(file = "../raw_data_counts/counts_B_P_U_screen/P2_S8_L001_R1_001.txt",delim = "\t")
+treat1<-read_delim(file = "../raw_data_counts/counts_panobinostat_screen/P1_S7_L001_R1_001.txt",delim = "\t")
+treat2<-read_delim(file = "../raw_data_counts/counts_panobinostat_screen/P2_S8_L001_R1_001.txt",delim = "\t")
 
 treatment<-"P"
 
 system(paste("mkdir",treatment))
 
-dmso1<-read_delim(file = "../raw_data_counts/counts_B_P_U_screen/DMSO1_S1_L001_R1_001.txt",delim = "\t")
-dmso2<-read_delim(file = "../raw_data_counts/counts_B_P_U_screen/DMSO2_S2_L001_R1_001.txt",delim = "\t")
+dmso1<-read_delim(file = "../raw_data_counts/counts_panobinostat_screen/DMSO1_S1_L001_R1_001.txt",delim = "\t")
+dmso2<-read_delim(file = "../raw_data_counts/counts_panobinostat_screen/DMSO2_S2_L001_R1_001.txt",delim = "\t")
 
 mydata<-treat1 %>% 
   left_join(treat2,by="sgRNA") %>% 
@@ -95,7 +87,7 @@ anno<-read_delim("../meta_data/gene_names.txt",delim="\t")
 
 ## Lets normalize the data
 
-```{r Normalization, echo=FALSE}
+```{r Normalization, echo=TRUE}
 
 mydata %<>% 
   mutate(count=if_else(count>10,count,NA_real_)) %>%    #filter low read counts
@@ -106,45 +98,22 @@ mydata %<>%
 
 ## Lets do some data QC
 
-```{r QC, echo=FALSE}
+### sgRNA-level replicate correlation
 
-#on sgRNA level
-p1 <- mydata %>% 
-  select(-count) %>%
-  spread(replicate,normval) %>%
-  ggplot(aes(x=`1`,y=`2`)) +
-    geom_point() +
-    geom_smooth(method = "lm") +
-    facet_wrap(~treatment,scales = "free") +
-    theme_b110()
-
-ggsave("../graphics/normalized_readcount_replicates_sgRNA_Panobinostat.pdf",width = 8,height = 8)
-
-print(p1)
+```{r QC1, echo=FALSE, message=FALSE, warning=FALSE, paged.print=TRUE}
 
 mydata %>% 
   select(-count) %>%
   spread(replicate,normval) %>%
   split(.$treatment) %>%
   lapply(function(x){x %>% ungroup() %>% select(`1`,`2`) %>% correlate() %>% rearrange() %>% shave() %>% fashion()})
+  
+# on gene level we get a replicate read count correlation of 0.94 and 0.97 for DMSO and Panobinostat treated samples respectively
+```
 
-# from this analysis we get a replicate correlation of 0.88 and 0.91 for the DMSO and Panobinostat treated samples respectively
+### gene-level replicate correlation
 
-#on gene level
-p1 <- mydata %>% 
-  select(-count) %>%
-  group_by(treatment,gene_id,replicate) %>%
-  summarise(mean_normval=mean(normval,na.rm=T)) %>%
-  spread(replicate,mean_normval) %>%
-  ggplot(aes(x=`1`,y=`2`)) +
-    geom_point() +
-    geom_smooth(method = "lm")+
-    facet_wrap(~treatment,scales = "free") +
-    theme_b110()
-
-ggsave("../graphics/normalized_readcount_replicates_genes_Panobinostat.pdf",width = 8,height = 8)
-
-print(p1)
+```{r QC2, echo=FALSE, message=FALSE, warning=FALSE, paged.print=TRUE}
 
 mydata %>% 
   group_by(treatment,gene_id,replicate) %>%
@@ -156,10 +125,47 @@ mydata %>%
 # on gene level we get a replicate read count correlation of 0.94 and 0.97 for DMSO and Panobinostat treated samples respectively
 ```
 
+### graphics
 
-## QC looks very nice and good so lets calls some foldchanges and hits thereof
+```{r QC3, echo=FALSE, message=FALSE, warning=FALSE, paged.print=TRUE}
 
-```{r hitcalling, echo=FALSE}
+
+p1 <- mydata %>% 
+  select(-count) %>%
+  spread(replicate,normval) %>%
+  ggplot(aes(x=`1`,y=`2`)) +
+    geom_point() +
+    geom_smooth(method = "lm") +
+    facet_wrap(~treatment,scales = "free") +
+    theme_b110() +
+    ggtitle("sgRNA-level read counts")
+
+#ggsave("../graphics/normalized_readcount_replicates_sgRNA_Panobinostat.pdf",p1,width = 8,height = 8)
+
+# from this analysis we get a replicate correlation of 0.88 and 0.91 for the DMSO and Panobinostat treated samples respectively
+
+p2 <- mydata %>% 
+  select(-count) %>%
+  group_by(treatment,gene_id,replicate) %>%
+  summarise(mean_normval=mean(normval,na.rm=T)) %>%
+  spread(replicate,mean_normval) %>%
+  ggplot(aes(x=`1`,y=`2`)) +
+    geom_point() +
+    geom_smooth(method = "lm")+
+    facet_wrap(~treatment,scales = "free") +
+    theme_b110()+
+    ggtitle("gene-level read counts")
+
+#ggsave("../graphics/normalized_readcount_replicates_genes_Panobinostat.pdf",p2,width = 8,height = 8)
+
+print(p1+p2)
+```
+
+QC looks very nice and good so lets calls some foldchanges and hits thereof
+
+## Hit-calling 
+
+```{r differential_folchanges, echo=FALSE, message=FALSE, warning=FALSE}
 
 #we average replicates and plot treated versus untreated samples
 #sgRNA level
@@ -169,15 +175,13 @@ p1 <- mydata %>%
   spread(treatment,value) %>%
   ggplot(aes(x=dmso,y=treat)) +
     geom_point() +
-    theme_b110()
+    theme_b110() +
+    ggtitle("sgRNA-level differentials")
 
-ggsave("../graphics/readcount_dmso_vs_vorinostat_sgRNA_Panobinostat.pdf",width = 8,height = 8)
-
-print(p1)
-
+#ggsave("../graphics/readcount_dmso_vs_vorinostat_sgRNA_Panobinostat.pdf",p1,width = 8,height = 8)
 
 #gene level
-p1 <- mydata %>% 
+p2 <- mydata %>% 
   group_by(gene_id,treatment) %>%
   summarise(value=mean(normval,na.rm=T)) %>%
   spread(treatment,value) %>%
@@ -185,12 +189,20 @@ p1 <- mydata %>%
     geom_point() +
     geom_abline(slope = 1,intercept = c(0,0)) +
     theme_classic()+
-    theme_b110()
+    theme_b110()+
+    ggtitle("gene-level differentials")
 
-ggsave("../graphics/readcount_dmso_vs_vorinostat_genes_Panobinostat.pdf",width = 8,height = 8)
+#ggsave("../graphics/readcount_dmso_vs_vorinostat_genes_Panobinostat.pdf",p2,width = 8,height = 8)
 
-print(p1)
+print(p1+p2)
 
+```
+
+### Statistical analysis
+
+Here we use pairwise wilcoxon rank-sum test between to fold changes of the individual sgRNAs for each gene and the individual negative control sgRNA to determine if the foldchange of the gene represented by independent sgRNAs is significantly different from the non-targeting controls.
+
+```{r hitcalling, echo=FALSE, message=FALSE, warning=FALSE}
 #lets call some foldchanges and hits
 tmp<-mydata %>% 
   group_by(sgRNA,gene_id,treatment) %>%
@@ -223,26 +235,26 @@ p1 <- final_gene %>%
     geom_abline(slope = 1,intercept = c(0,0)) +
     theme_classic() +
     geom_label_repel()+
-    scale_color_manual(values = c(b110_grey_light,google_blue))
+    scale_color_manual(values = c(b110_grey_light,google_blue))+
+    ggtitle("gene-level differentials marked")
 
 
-ggsave("../graphics/readcount_dmso_vs_vorinostat_genes_stats_Panobinostat.pdf",width = 8,height = 8)
-
-print(p1)
+#ggsave("../graphics/readcount_dmso_vs_vorinostat_genes_stats_Panobinostat.pdf",p1,width = 8,height = 8)
 
 #gene level
-p1 <- final_gene %>% 
+p2 <- final_gene %>% 
   left_join(anno) %>% 
   mutate(labels=if_else(gene_symbol %in% c("EHMT1","EHMT2","CARM1","TADA2B"),gene_symbol,NA_character_)) %>%
   ggplot(aes(x=logfc,y=-log10(p.value),color=significant,label=labels)) +
     geom_point() +
     theme_classic() +
     geom_label_repel() +
-    scale_color_manual(values = c(b110_grey_light,google_blue))
+    scale_color_manual(values = c(b110_grey_light,google_blue))+
+    ggtitle("gene-level volcano")
 
-ggsave("../graphics/volcano_stat_colored_Panobinostat.pdf",width = 8,height = 8)
+#ggsave("../graphics/volcano_stat_colored_Panobinostat.pdf",p2,width = 8,height = 8)
 
-print(p1)
+print(p1+p2)
 
 final_gene %>% 
   left_join(anno) %>% 
@@ -261,10 +273,11 @@ p1 <- final_sg %>%
   theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank()) +
-    scale_fill_manual(values = c(google_blue,google_red))
+    scale_fill_manual(values = c(google_blue,google_red))+
+    ggtitle("candidate waterfall plots")
 
 
-ggsave("../graphics/EHMT_sgRNAs_colored_Panobinostat.pdf",width = 8,height = 8)
+#ggsave("../graphics/EHMT_sgRNAs_colored_Panobinostat.pdf",p1,width = 8,height = 8)
 
 print(p1)
 
@@ -280,7 +293,7 @@ final_sg %>%
   filter(gene_id == "random") %>%
   write_delim("../results/random_sgRNALevelData_Panobinostat.tsv",delim = "\t")
 
-p1 <- final_sg %>% 
+p2 <- final_sg %>% 
   left_join(anno) %>% 
   filter(gene_symbol %in% c("EHMT1","EHMT2","CARM1","TADA2B") | gene_id %in% c("random")) %>%
   mutate(labels = if_else(is.na(gene_symbol),gene_id,gene_symbol)) %>%
@@ -294,16 +307,20 @@ p1 <- final_sg %>%
   theme(axis.title.x = element_blank(),
         axis.text.x = element_blank(),
         axis.ticks.x = element_blank()) +
-    scale_fill_manual(values = c(google_blue,google_red))
+    scale_fill_manual(values = c(google_blue,google_red))+
+    ggtitle("control waterfall plots")
 
 
-ggsave("../graphics/EHMT_random_sgRNAs_colored_Panobinostat.pdf",width = 8,height = 8)
+#ggsave("../graphics/EHMT_random_sgRNAs_colored_Panobinostat.pdf",p2,width = 8,height = 8)
 
-print(p1)
+print(p2)
 ```
 
 # Session info
 
-```{r}
-writeLines(capture.output(sessionInfo()), paste("../results/SessionInfo_Panobinostat.txt",sep = ""))
+```{r include=FALSE}
+
+sessionInfo()
+
+#writeLines(capture.output(sessionInfo()), paste("../results/SessionInfo_Panobinostat.txt",sep = ""))
 ```

@@ -29,11 +29,6 @@ theme_b110 <- function(){
     )
 }
 
-```
-
-## B110 Colors
-
-```{r colors, message=TRUE, warning=FALSE}
 sgi_blue    = '#5087C8'
 sgi_yellow1 = '#F2EE35'
 sgi_yellow2 = '#FED98E'
@@ -54,7 +49,7 @@ Lets check how the data looks like and what the objectives of the analyses are.
 We conclude that we have data for two cell lines, in two different passages each. Each was measured for the abundance of 146 different analytes between two treatments. These are however always a little bit different.
 
 ```{r data_input, message=TRUE, warning=FALSE}
-mydata <- read_excel('../raw_data/DigiWest results corrected3 and double checked 191229_adapted.xlsx',col_names = T)
+mydata <- read_excel('./raw_data/DigiWest results corrected3 and double checked 191229_adapted.xlsx',col_names = T)
 
 mydata %<>% 
   select(process = Pathway,everything()) %>% 
@@ -78,6 +73,7 @@ We vizualize the foldchange (log2 Combi/DMSO) of each analyte per cell line.
 p1 <- mydata %>% 
   group_by(Analyte,cellline) %>%
   mutate(meanfc = mean(fc)) %>%
+  filter(meanfc>0) %>%
   ungroup() %>%
   mutate(Analyte = factor(Analyte,levels = unique(Analyte[order(process)]))) %>%
   ggplot(aes(x = Analyte,y = fc)) +
@@ -88,7 +84,7 @@ p1 <- mydata %>%
     facet_wrap(~cellline) +
     theme_classic()
 
-ggsave("../graphics/data_overview.pdf",width = 8,height = 24)
+#ggsave("../graphics/data_overview.pdf",width = 8,height = 24)
 
 print(p1)
 
@@ -103,6 +99,7 @@ mysplit <- mydata %>% split(.$cellline)
 p1 <- mydata %>% 
   group_by(Analyte) %>%
   mutate(meanfc = mean(fc)) %>%
+  filter(meanfc>0) %>%
   ungroup() %>%
   mutate(Analyte = factor(Analyte,levels = unique(Analyte[order(process)]))) %>%
   mutate(process = if_else(process %in% c("APOPTOSIS","AUTOPHAGY","CELL CYCLE"),process,"other")) %>%
@@ -117,13 +114,14 @@ p1 <- mydata %>%
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     ggtitle("all data log2 foldchange >0.4 bothlines")
 
-ggsave("../graphics/data_overview_cutoff_fc_04.pdf",width = 24,height = 8)
+#ggsave("./graphics/data_overview_cutoff_fc_04.pdf",width = 24,height = 8)
 
 print(p1)
 
 p1 <- mysplit$HCT116 %>% 
   group_by(Analyte) %>%
   mutate(meanfc = mean(fc)) %>%
+  filter(meanfc>0) %>%
   ungroup() %>%
   mutate(Analyte = factor(Analyte,levels = unique(Analyte[order(process)]))) %>%
   mutate(process = if_else(process %in% c("APOPTOSIS","AUTOPHAGY","CELL CYCLE"),process,"other")) %>%
@@ -138,13 +136,14 @@ p1 <- mysplit$HCT116 %>%
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     ggtitle("HCT116 log2 foldchange >0.4")
 
-ggsave("../graphics/HCT116_log2_foldchange.pdf",width = 24,height = 8)
+#ggsave("./graphics/HCT116_log2_foldchange.pdf",width = 24,height = 8)
 
 print(p1)
 
 p1 <- mysplit$HT29 %>% 
   group_by(Analyte) %>%
   mutate(meanfc =  mean(fc)) %>%
+  filter(meanfc>0) %>%
   ungroup() %>%
   mutate(Analyte =  factor(Analyte,levels = unique(Analyte[order(process)]))) %>%
   mutate(process = if_else(process %in% c("APOPTOSIS","AUTOPHAGY","CELL CYCLE"),process,"other")) %>%
@@ -159,7 +158,7 @@ p1 <- mysplit$HT29 %>%
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     ggtitle("HT29 log2 foldchange >0.4")
 
-ggsave("../graphics/HT29_log2_foldchange.pdf",width = 24,height = 8)
+#ggsave("./graphics/HT29_log2_foldchange.pdf",width = 24,height = 8)
 
 print(p1)
 
@@ -169,7 +168,7 @@ HCT116_FDR <-
   spread(passage,fc) %>% 
   select_if(is.numeric) %>% 
   lmFit() %>% 
-  limma::eBayes() %>% 
+  limma::eBayes(fit = .) %>% 
   .$p.value %>% 
   p.adjust(method = "BH")
 
@@ -181,7 +180,7 @@ HT29_FDR <-
   spread(passage,fc) %>% 
   select_if(is.numeric) %>% 
   lmFit() %>% 
-  limma::eBayes() %>% 
+  limma::eBayes(fit = .) %>% 
   .$p.value %>% 
   p.adjust(method = "BH")
 
@@ -193,21 +192,22 @@ HT29_data <-
 
 HCT116_data %>%
   arrange(fdr) %>%
-  write_delim("../results/HCT116_data_digiwest_28.02.2020.tsv",delim = "\t")
+  write_delim("./results/HCT116_data_digiwest_28.02.2020.tsv",delim = "\t")
 
 HT29_data %>%
   arrange(fdr) %>%
-  write_delim("../results/HT29_data_digiwest_28.02.2020.tsv",delim = "\t")
+  write_delim("./results/HT29_data_digiwest_28.02.2020.tsv",delim = "\t")
 
 
 ```
 
 # reproducibility
 
-```{r reproducibility, message=TRUE, warning=FALSE}
+```{r reproducibility, echo=FALSE, message=FALSE, warning=FALSE}
 p1 <- mydata %>% 
   group_by(Analyte,cellline,passage) %>%
   mutate(meanfc = mean(fc)) %>%
+  filter(meanfc>0) %>%
   select(process,Analyte,cellline,passage,meanfc) %>%
   distinct() %>%
   spread(passage,meanfc) %>%
@@ -215,15 +215,18 @@ p1 <- mydata %>%
     geom_point() +
     geom_smooth(method = "lm") +
     facet_wrap(~cellline, scales = "free") +
-    theme_b110()
+    theme_b110()+
+    ggtitle("Foldchange reproducibility")
  
-ggsave("../graphics/reproducibility.pdf",width = 16,height = 8)
+#ggsave("../graphics/reproducibility.pdf",width = 16,height = 8)
 
 print(p1)
 ```
 
 # Session info
 
-```{r, message=TRUE, warning=FALSE}
-writeLines(capture.output(sessionInfo()), paste("../results/SessionInfo.txt",sep = ""))
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+sessionInfo()
+
+#writeLines(capture.output(sessionInfo()), paste("../results/SessionInfo.txt",sep = ""))
 ```

@@ -28,6 +28,8 @@
 # knitr and R markdown default cache directories
 *_cache/
 /cache/
+*.tex
+*latex/*
 
 # Temporary files created by R markdown
 *.utf8.md
@@ -41,5 +43,11 @@ crispr_screen_analysis/library_design/5.0.1.20.604/chrom_mod.5.0.1.20.604.large.
 EHMT_expression_analysis/source_data/Cell_line_RMA_proc_basalExp.txt
 .Rproj.user
 Bamberg_2020/crispr_screen_analysis/mageck_analysis
+Bamberg_2020/crispr_screen_analysis/graphics
 *large*
 .RData
+crispr_screen_analysis/scripts/CRISPRScreen-Analysis_P_files/figure-latex/*
+crispr_screen_analysis/scripts/CRISPRScreen-Analysis_V_files/figure-latex/*
+crispr_screen_analysis/mageck_analysis/alternative_mageck_analysis.R
+digi_west_analysis/graphics
+EHMT_expression_analysis/results

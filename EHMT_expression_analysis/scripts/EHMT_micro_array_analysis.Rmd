@@ -3,7 +3,7 @@ title: "Analysis of a correlation between EHMT expression and drug sensitivity i
 author: "Florian Heigwer"
 date: "`r Sys.Date()`"
 abstract: >
- This document contains code to analyze a micro-array experiment performed by Johannes Bedge and colleagues at the University Clinic Mannheim Bedge Group. The data comprises multiple Affymetrix chips performed by the DKFZ? core facility. Purpose is to find if EHMT1/2 expression correlates with the PDO's sensitivity to HDAC inhibitor treatments. Data was produced in replicates sampling each donor derived PDO line in 2 different passages.
+ This document contains code to analyze a micro-array experiment performed by Johannes Bedge and colleagues at the University Clinic Mannheim Bedge Group. The data comprises multiple Affymetrix chips performed by the DKFZ core facility. Purpose is to find if EHMT1/2 expression correlates with the PDO's sensitivity to HDAC inhibitor treatments. Data was produced in replicates sampling each donor derived PDO line in 2 different passages.
 bibliography: references.bib
 output: BiocStyle::pdf_document
 vignette: >
@@ -398,12 +398,30 @@ p2 <- data_to_plot %>%
                 step_increase = 0.2,
                 vjust = 0.2)
 
+p3 <- data_to_plot %>%
+  filter(EHMT2q!="medium") %>%
+  ggplot(aes(x=EHMT2q,y=auc)) +
+    geom_jitter(aes(fill=EHMT2q)) + 
+    theme_b110() +
+    scale_fill_manual(values = c(google_blue,google_red)) +
+    stat_summary( fun.data = give.n, 
+                  geom = "text", 
+                 # fun.y = median,
+                  position = position_dodge(width = 0.75),fun.ymin = max)+
+    geom_signif(na.rm=T,
+                comparisons = list(c("low","high")),
+                test = "t.test",
+                test.args = list("alternative"="two.sided"),
+                step_increase = 0.2,
+                vjust = 0.2)
+
 p<- p1 + p2 + plot_layout(ncol = 2) 
 
 ggsave("results/PDO_EHMTvsHDAC.pdf",p,height = 6,width=12)
 
 print(p)
 
+print(p3)
 ```
 
 # EHMT2 expression drug sensitivity linear dependence test
