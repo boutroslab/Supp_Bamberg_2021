@@ -21,8 +21,6 @@
 .Rproj.user/
 
 # produced vignettes
-vignettes/*.html
-vignettes/*.pdf
 
 # OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
 .httr-oauth
@@ -41,3 +39,7 @@ archive_non_commited/*
 crispr_screen_analysis/library_design/5.0.1.20.604/chrom_mod.5.0.1.20.604.large.gff
 crispr_screen_analysis/library_design/5.0.1.20.604/chrom_mod.5.0.1.20.604.large.tab
 EHMT_expression_analysis/source_data/Cell_line_RMA_proc_basalExp.txt
+.Rproj.user
+Bamberg_2020/crispr_screen_analysis/mageck_analysis
+*large*
+.RData
