@@ -1,7 +1,7 @@
 ---
-title: "Ambika HDAC inhibitor screen analysis"
+title: "HDAC inhibitor screen analysis"
 author: "F. Heigwer"
-date: "8/17/2018"
+date: "06/02/2021"
 output:
   pdf_document: 
     keep_tex: yes
@@ -61,10 +61,6 @@ All plots were used as given for the main figure panels. The compiled vignette p
 
 treat1<-read_delim(file = "../raw_data_counts/counts_panobinostat_screen/P1_S7_L001_R1_001.txt",delim = "\t")
 treat2<-read_delim(file = "../raw_data_counts/counts_panobinostat_screen/P2_S8_L001_R1_001.txt",delim = "\t")
-
-treatment<-"P"
-
-system(paste("mkdir",treatment))
 
 dmso1<-read_delim(file = "../raw_data_counts/counts_panobinostat_screen/DMSO1_S1_L001_R1_001.txt",delim = "\t")
 dmso2<-read_delim(file = "../raw_data_counts/counts_panobinostat_screen/DMSO2_S2_L001_R1_001.txt",delim = "\t")
@@ -318,7 +314,7 @@ print(p2)
 
 # Session info
 
-```{r include=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 
 sessionInfo()
 
