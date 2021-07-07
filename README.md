@@ -14,6 +14,6 @@ Epigenetic dysregulation is an important feature of colorectal cancer (CRC). Com
 
 ## Contact
 
-Should you encounter any issues or have any questions please contact Tianzup Zhan <t.zhan@dkfz.de> or Florian Heigwer <f.heigwer@dkfz.de>.
+Should you encounter any issues or have any questions please contact Tianzuo Zhan <t.zhan@dkfz.de> or Florian Heigwer <f.heigwer@dkfz.de>.
 
 Raw sequencing read data are deposit at ENA under the Study ID: PRJEB39827
