@@ -103,7 +103,7 @@ mydata %>%
 
 mydata %>%
   group_by(treatment) %>%
-  summarise(median_cov=median(count),mad_cov=mad(count),mean_cov=mean(count), sd_cov = sd(count), Totalcount= sum(count), Zerocount= sum(count==0))
+  summarise(median_cov=median(count),mad_cov=mad(count),mean_cov=mean(count), sd_cov = sd(count), Totalcount= sum(count), Zerocount= sum(count==0), Maxcount=max(count),sum(count>200)*20)
 
 mydata %>%
   group_by(treatment) %>%

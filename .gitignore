@@ -52,3 +52,4 @@ crispr_screen_analysis/mageck_analysis/alternative_mageck_analysis.R
 digi_west_analysis/graphics
 EHMT_expression_analysis/results
 ena_files
+crispr_screen_analysis/fastqc/QC_table_old.xlsx
